@@ -1,37 +1,28 @@
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, ContextTypes
 from pymongo import MongoClient
 import requests
 import logging
 from urllib.parse import quote_plus
 import os
-from dotenv import load_dotenv  # For local dev only
-from telegram import Bot
+from dotenv import load_dotenv
 
-
-import time
+# Load environment variables
 load_dotenv()
 
-
-
-
-
-# Enable logging (for debugging errors in bot)
+# Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
+# MongoDB setup
 username = os.getenv("username")
-password = os.getenv("password") # This will encode the '@' as '%40'
-
-
+password = os.getenv("password")
 uri = f"mongodb+srv://{quote_plus(username)}:{quote_plus(password)}@cluster0.qerhys8.mongodb.net/"
 
-
-# MongoDB Connection
-client=MongoClient(uri)
-
+client = MongoClient(uri)
 db = client["leetcode_bot"]
 users = db["users"]
 
@@ -90,11 +81,13 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         upsert=True,
     )
 
-    await update.message.reply_text(f"✅ Registered *{username}* with {solved} problems solved!",
-                                    parse_mode="Markdown")
+    await update.message.reply_text(
+        f"✅ Registered *{username}* with {solved} problems solved!",
+        parse_mode="Markdown"
+    )
 
 
-# Leaderboard command - shows top 10 registered users
+# Leaderboard command
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_users = list(users.find().sort("total_solved", -1))
     if not all_users:
@@ -102,12 +95,11 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     message = "🏆 *LeetCode Leaderboard* 🏆\n\n"
-
     rank = 1
     user_id = update.effective_user.id
     user_rank = None
 
-    for user in all_users[:10]:  # Show top 10 users
+    for user in all_users[:10]:
         message += f"{rank}. *{user['leetcode_username']}* → {user['total_solved']} ✅\n"
         if user["telegram_id"] == user_id:
             user_rank = rank
@@ -125,7 +117,7 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message, parse_mode="Markdown")
 
 
-# Single user search command - /search <leetcode_username>
+# Search command
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("⚠️ Usage: /search <leetcode_username>")
@@ -135,10 +127,12 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = users.find_one({"leetcode_username": username})
 
     if not user:
-        await update.message.reply_text(f"❌ User *{username}* not found in the database.", parse_mode="Markdown")
+        await update.message.reply_text(
+            f"❌ User *{username}* not found in the database.",
+            parse_mode="Markdown"
+        )
         return
 
-    # Optionally refresh the stats
     solved = get_leetcode_stats(username)
     if solved != -1 and solved != user["total_solved"]:
         users.update_one({"leetcode_username": username}, {"$set": {"total_solved": solved}})
@@ -149,10 +143,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message, parse_mode="Markdown")
 
 
+# Main function
 def main():
     token = os.getenv("telegram_token")
-    bot = Bot(token=token)
-    app = Application.builder().bot(bot).build()
+    app = Application.builder().token(token).build()
 
     app.add_handler(CommandHandler("register", register))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
@@ -163,5 +157,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()

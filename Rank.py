@@ -6,9 +6,14 @@ import logging
 from urllib.parse import quote_plus
 import os
 from dotenv import load_dotenv  # For local dev only
+from telegram import Bot
+
 
 import time
 load_dotenv()
+
+
+
 
 
 # Enable logging (for debugging errors in bot)
@@ -144,9 +149,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message, parse_mode="Markdown")
 
 
-# Bot entry point
 def main():
-    app = Application.builder().token(os.getenv("telegram_token")).build()
+    token = os.getenv("telegram_token")
+    bot = Bot(token=token)
+    app = Application.builder().bot(bot).build()
 
     app.add_handler(CommandHandler("register", register))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
@@ -157,4 +163,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
